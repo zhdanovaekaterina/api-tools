@@ -127,7 +127,7 @@ REPORT = 'conversions report'
 # <-- Main interface section -->
 
 params = Params()
-params.set_period()  # This will set period by default
+params.set_period()  # This will set period by default or by label passed
 params['custom_param'] = 'custom_param'
 
 connection = MetrikaConnection(
