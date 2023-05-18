@@ -1,13 +1,19 @@
 import os
+import asyncio
+
+import pytest
+
+from connect.metrika import Metrika
 
 
-def test_metrika():
+@pytest.mark.asyncio
+async def test_response():
 
-    from tools.metrika import Metrika
+    token = os.getenv('METRIKA_TOKEN')
+    counter = os.getenv('METRIKA_COUNTER')
 
-    test_env = os.getenv('TOKEN')
-    print(test_env)
+    connection = Metrika()
+    data = await connection.get(token, counter)
+    print(data)
 
-    metrika_obj = Metrika()
-
-    # TODO: find out why this doesn't work from console
+    assert data
