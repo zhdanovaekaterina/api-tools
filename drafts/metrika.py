@@ -1,3 +1,8 @@
+import os
+from datetime import date
+from dotenv import load_dotenv
+from pprint import pprint
+
 import pandas as pd
 
 import json
@@ -9,6 +14,7 @@ import requests
 from requests.exceptions import ReadTimeout
 
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
 
@@ -46,6 +52,15 @@ class MetrikaSet(IndexSet):
 
         self.main_url = 'https://api-metrika.yandex.net/stat/'
         self.version = 'v1'
+
+    @staticmethod
+    def get_period():
+        """Получает необходимый период для запроса данных из вебмастера"""
+
+        start_date = '2023-03-28'
+        end_date = '2023-05-18'
+
+        return start_date, end_date
 
 
 class IndexLoader:
@@ -141,3 +156,9 @@ class MetrikaReport(IndexReport):
 
         self.data = pd.DataFrame(self.data).sort_values(by='dateTime')
 
+
+if __name__ == '__main__':
+    sett = MetrikaSet()
+    report = MetrikaLoader(sett)
+    data = report.get_unique_visitors()
+    pprint(data)
