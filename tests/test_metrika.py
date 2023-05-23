@@ -3,15 +3,18 @@ from pprint import pprint
 import pytest
 
 from connect.metrika import ApiError
-from tests.fixtures.metrika_fixtures import valid_metrika_connection, invalid_metrika_connection
+from tests.fixtures.metrika_fixtures import real_metrika_connection, valid_metrika_connection, invalid_metrika_connection
 
 
+# TODO: return valid_metrika_connection fixture after exploring
 @pytest.mark.asyncio
-async def test_response(valid_metrika_connection):
+async def test_response(real_metrika_connection):
     """This will test valid data getting"""
 
-    data = await valid_metrika_connection.get()
+    data = await real_metrika_connection.get()
     pprint(data)
+
+    # assert len(data.get('data')) == 7
 
 
 @pytest.mark.asyncio

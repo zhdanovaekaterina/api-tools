@@ -22,3 +22,14 @@ def invalid_metrika_connection(monkeypatch):
 
     monkeypatch.setattr(connect.metrika.Metrika, "_get", metrika_mocks.mock_403_get)
     return Metrika(token='', counter='')
+
+
+@pytest.fixture()
+def real_metrika_connection(monkeypatch):
+    """Returns valid Metrika connection for developing."""
+
+    load_dotenv()
+    token = os.getenv('METRIKA_TOKEN')
+    counter = os.getenv('METRIKA_COUNTER')
+
+    return Metrika(token=token, counter=counter)

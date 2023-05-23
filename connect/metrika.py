@@ -41,8 +41,17 @@ class Metrika:
         logging.info('Metrika init')
 
         self.consts = MetrikaConsts
-        self.token = token
         self.counter = counter
+
+        self.headers = {
+            "Authorization": "OAuth " + token,
+        }
+
+        self.params = {
+            'ids': self.counter,
+            # 'metrics': 'ym:s:users',
+            # 'dimensions': 'ym:s:date',
+        }
 
     async def _get(self, session, url, headers, params):
         """
@@ -65,18 +74,10 @@ class Metrika:
 
         endpoint = self.consts.main_url + self.consts.version + '/data'
 
-        headers = {
-            "Authorization": "OAuth " + self.token,
-        }
-
-        params = {
-            'ids': self.counter,
-            'metrics': 'ym:s:users',
-            'dimensions': 'ym:s:date',
-        }
+        params = self.params
 
         async with ClientSession() as session:
-            response = await self._get(session, endpoint, headers, params)
+            response = await self._get(session, endpoint, self.headers, params)
 
         if response.get('errors'):
             return ApiError(code=response.get("code"), message=response.get("message"))
