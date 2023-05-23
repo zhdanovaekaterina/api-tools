@@ -8,12 +8,15 @@ from tests.fixtures.metrika_fixtures import valid_metrika_connection, invalid_me
 
 @pytest.mark.asyncio
 async def test_response(valid_metrika_connection):
+    """This will test valid data getting"""
+
     data = await valid_metrika_connection.get()
     pprint(data)
 
 
 @pytest.mark.asyncio
 async def test_403_response(invalid_metrika_connection):
+    """This will test 403 response proceeding"""
 
     data = await invalid_metrika_connection.get()
 
