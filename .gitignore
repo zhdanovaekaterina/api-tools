@@ -1,5 +1,5 @@
 venv
 .idea
-tests/.env
+.env
 .pytest_cache
 /.env

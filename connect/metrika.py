@@ -18,6 +18,9 @@ class ApiError:
     def __str__(self):
         return f'API Error: {self.code}: {self.message}'
 
+    def __repr__(self):
+        return f'API Error: {self.code}: {self.message}'
+
 
 class MetrikaConsts:
     """
@@ -41,7 +44,6 @@ class Metrika:
         self.token = token
         self.counter = counter
 
-
     async def _get(self, session, url, headers, params):
         """
         Sends request to the API.
@@ -54,7 +56,6 @@ class Metrika:
 
         async with session.get(url, headers=headers, params=params) as resp:
             return await resp.json()
-
 
     async def get(self):
         """

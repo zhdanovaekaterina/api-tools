@@ -1,19 +1,19 @@
 import os
 import pytest
 
+from dotenv import load_dotenv
+
 import connect.metrika
 from connect.metrika import Metrika
 from tests.mocks import metrika_mocks
 
 
 @pytest.fixture()
-def real_metrika_connection():
-    """Returns real Metrika connection for developing."""
-    token = os.getenv('METRIKA_TOKEN')
-    counter = os.getenv('METRIKA_COUNTER')
-    connection = Metrika(token=token, counter=counter)
+def valid_metrika_connection(monkeypatch):
+    """Returns valid Metrika connection for developing."""
 
-    return connection
+    monkeypatch.setattr(connect.metrika.Metrika, "_get", metrika_mocks.data_get)
+    return Metrika(token='', counter='')
 
 
 @pytest.fixture()
