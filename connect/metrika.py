@@ -11,9 +11,22 @@ class ApiError:
     A simple class to represent API errors
     """
 
+    LIST_OF_DIMENTIONS_AND_METRICS = 'https://yandex.com/dev/metrika/doc/api2/api_v1/attrandmetr/dim_all.html'
+
     def __init__(self, **kwargs):
         self.code = kwargs.get('code', 'Unexpected')
         self.message = kwargs.get('message', 'An API Error occured')
+        self._change_message()
+
+    def _change_message(self):
+        """
+        Adds more valuable comment to some API errors.
+        """
+
+        match self.code:
+            case 400:
+                self.message = f'{self.message}. ' \
+                               f'Documentation link: {ApiError.LIST_OF_DIMENTIONS_AND_METRICS}'
 
     def __str__(self):
         return f'API Error: {self.code}: {self.message}'
@@ -27,8 +40,8 @@ class MetrikaConsts:
     Contains constant values for Metrika API, like urls
     """
 
-    main_url = 'https://api-metrika.yandex.net/stat/'
-    version = 'v1'
+    BASE_URL = 'https://api-metrika.yandex.net/stat/'
+    VERSION = 'v1'
 
 
 class Metrika:
@@ -40,6 +53,9 @@ class Metrika:
     def __init__(self, token, counter):
         logging.info('Metrika init')
 
+        self.raw_response = None
+        self.response = None
+
         self.consts = MetrikaConsts
         self.counter = counter
 
@@ -49,9 +65,14 @@ class Metrika:
 
         self.params = {
             'ids': self.counter,
-            # 'metrics': 'ym:s:users',
-            # 'dimensions': 'ym:s:date',
         }
+
+    def add_params(self, params: dict):
+        """
+        Adds params for the object.
+        """
+
+        self.params = self.params | params
 
     async def _get(self, session, url, headers, params):
         """
@@ -72,14 +93,12 @@ class Metrika:
         :return:
         """
 
-        endpoint = self.consts.main_url + self.consts.version + '/data'
-
-        params = self.params
+        endpoint = self.consts.BASE_URL + self.consts.VERSION + '/data'
 
         async with ClientSession() as session:
-            response = await self._get(session, endpoint, self.headers, params)
+            self.raw_response = await self._get(session, endpoint, self.headers, self.params)
 
-        if response.get('errors'):
-            return ApiError(code=response.get("code"), message=response.get("message"))
+        if self.raw_response.get('errors'):
+            return ApiError(code=self.raw_response.get("code"), message=self.raw_response.get("message"))
 
-        return response
+        return self.raw_response

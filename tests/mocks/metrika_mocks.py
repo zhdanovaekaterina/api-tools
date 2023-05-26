@@ -7,6 +7,24 @@ async def mock_403_get(self, *args):
     }
 
 
+async def mock_400_get(self, *args):
+    return {
+        'code': 400,
+        'errors': [
+            {
+                'error_type': 'invalid_parameter',
+                'message': 'Metrics and dimensions with different prefixes can be '
+                    'used together only when filtering data, value: '
+                    'ym:pv:date is incompatible with ym:s:users, error '
+                    'code: 4011'
+            }
+        ],
+            'message': 'Metrics and dimensions with different prefixes can be used '
+                'together only when filtering data, value: ym:pv:date is '
+                'incompatible with ym:s:users, error code: 4011'
+    }
+
+
 async def data_get(self, *args):
     return {
         'data': [{'dimensions': [{'name': '2023-05-17'}], 'metrics': [1524.0]},
