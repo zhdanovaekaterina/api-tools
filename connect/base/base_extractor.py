@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 
-class BaseConnectorInterface(ABC):
+class BaseExtractorInterface(ABC):
     """Gives basic interface for API connection"""
 
     @abstractmethod
@@ -14,7 +14,7 @@ class BaseConnectorInterface(ABC):
         pass
 
 
-class BaseConnector:
+class BaseExtractor:
     """Implements basic interface for API connection"""
 
     def __init__(self, **kwargs):

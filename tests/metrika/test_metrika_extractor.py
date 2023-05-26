@@ -1,10 +1,7 @@
-from pprint import pprint
-
 import pytest
 
-import connect.metrika
-from connect.metrika import ApiError
-from connect.metrika import Metrika
+from connect.metrika import metrika_extractor
+from connect.metrika.metrika_extractor import MetrikaApiError, MetrikaExtractor
 from tests.mocks import metrika_mocks
 
 
@@ -12,8 +9,8 @@ from tests.mocks import metrika_mocks
 async def test_valid_params(monkeypatch):
     """This will test valid data getting"""
 
-    monkeypatch.setattr(connect.metrika.Metrika, "_get", metrika_mocks.data_get)
-    connection = Metrika(token='', counter='')
+    monkeypatch.setattr(metrika_extractor.MetrikaExtractor, "_get", metrika_mocks.data_get)
+    connection = MetrikaExtractor(token='', counter='')
 
     correct_params = {
         'metrics': 'ym:s:users',
@@ -29,8 +26,8 @@ async def test_valid_params(monkeypatch):
 async def test_invalid_params(monkeypatch):
     """This will test valid data getting"""
 
-    monkeypatch.setattr(connect.metrika.Metrika, "_get", metrika_mocks.mock_400_get)
-    connection = Metrika(token='', counter='')
+    monkeypatch.setattr(metrika_extractor.MetrikaExtractor, "_get", metrika_mocks.mock_400_get)
+    connection = MetrikaExtractor(token='', counter='')
 
     incorrect_params = {
         'metrics': 'ym:s:users',
@@ -40,7 +37,7 @@ async def test_invalid_params(monkeypatch):
     connection.add_params(incorrect_params)
     data = await connection.get()
 
-    assert type(data) == ApiError
+    assert type(data) == MetrikaApiError
     assert data.code == 400
 
 
@@ -48,9 +45,9 @@ async def test_invalid_params(monkeypatch):
 async def test_403_response(monkeypatch):
     """This will test 403 response proceeding"""
 
-    monkeypatch.setattr(connect.metrika.Metrika, "_get", metrika_mocks.mock_403_get)
-    connection = Metrika(token='', counter='')
+    monkeypatch.setattr(metrika_extractor.MetrikaExtractor, "_get", metrika_mocks.mock_403_get)
+    connection = MetrikaExtractor(token='', counter='')
 
     data = await connection.get()
-    assert type(data) == ApiError
+    assert type(data) == MetrikaApiError
     assert data.code == 403

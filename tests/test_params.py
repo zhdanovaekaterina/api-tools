@@ -1,6 +1,6 @@
 import pytest
 
-import connect.params as params
+import connect.base.params as params
 
 
 testdata = [

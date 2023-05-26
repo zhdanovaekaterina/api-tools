@@ -2,11 +2,10 @@ import logging
 
 from aiohttp import ClientSession
 
-
 logger = logging.getLogger(__name__)
 
 
-class ApiError:
+class MetrikaApiError:
     """
     A simple class to represent API errors
     """
@@ -26,7 +25,7 @@ class ApiError:
         match self.code:
             case 400:
                 self.message = f'{self.message}. ' \
-                               f'Documentation link: {ApiError.LIST_OF_DIMENTIONS_AND_METRICS}'
+                               f'Documentation link: {MetrikaApiError.LIST_OF_DIMENTIONS_AND_METRICS}'
 
     def __str__(self):
         return f'API Error: {self.code}: {self.message}'
@@ -44,7 +43,7 @@ class MetrikaConsts:
     VERSION = 'v1'
 
 
-class Metrika:
+class MetrikaExtractor:
     """
     Implements interface for Yandex Metrika API.
     Docs: https://yandex.ru/dev/metrika/doc/api2/concept/about.html
@@ -69,7 +68,7 @@ class Metrika:
 
     def add_params(self, params: dict):
         """
-        Adds params for the object.
+        Adds params to the object.
         """
 
         self.params = self.params | params
@@ -99,6 +98,6 @@ class Metrika:
             self.raw_response = await self._get(session, endpoint, self.headers, self.params)
 
         if self.raw_response.get('errors'):
-            return ApiError(code=self.raw_response.get("code"), message=self.raw_response.get("message"))
+            return MetrikaApiError(code=self.raw_response.get("code"), message=self.raw_response.get("message"))
 
         return self.raw_response

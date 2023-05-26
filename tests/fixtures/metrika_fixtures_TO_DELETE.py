@@ -3,8 +3,8 @@ import pytest
 
 from dotenv import load_dotenv
 
-import connect.metrika
-from connect.metrika import Metrika
+import connect.metrika.metrika_extractor
+from connect.metrika.metrika_extractor import Metrika
 from tests.mocks import metrika_mocks
 
 
@@ -12,7 +12,7 @@ from tests.mocks import metrika_mocks
 def valid_metrika_connection(monkeypatch):
     """Returns valid Metrika connection for developing."""
 
-    monkeypatch.setattr(connect.metrika.Metrika, "_get", metrika_mocks.data_get)
+    monkeypatch.setattr(connect.metrika.metrika.Metrika, "_get", metrika_mocks.data_get)
     return Metrika(token='', counter='')
 
 
@@ -20,7 +20,7 @@ def valid_metrika_connection(monkeypatch):
 def invalid_metrika_connection(monkeypatch):
     """Returns invalid Metrika connection with 403 error."""
 
-    monkeypatch.setattr(connect.metrika.Metrika, "_get", metrika_mocks.mock_403_get)
+    monkeypatch.setattr(connect.metrika.metrika.Metrika, "_get", metrika_mocks.mock_403_get)
     return Metrika(token='', counter='')
 
 
