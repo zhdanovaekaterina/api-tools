@@ -1,7 +1,9 @@
 import os
 import asyncio
 import logging
+import time as t
 from abc import ABC, abstractmethod
+from pprint import pprint
 
 import pandas as pd
 from dotenv import load_dotenv
@@ -32,6 +34,20 @@ USER_IDS = {
 }
 
 # --- end of config.py ---
+
+
+def timetracking(foo):
+    async def track_time():
+        start_time = t.time()
+        logger.info('--- Started working ---')
+
+        await foo()
+
+        end_time = t.time()
+        total_time = round((end_time - start_time), 3)
+        logger.info(f'--- Finished in {total_time} s. ---')
+
+    return track_time
 
 
 def set_preferences():
@@ -214,6 +230,115 @@ class RedmineTimeByProjects(RedmineTime):
                 self.raw_data.extend(temp)
 
 
+class RedmineTimeByUsers(RedmineTime):
+
+    MAIN_ENTITY = 'time_entries'  # Ключевая сущность класса, которая будет загружена при возвращении ответа
+    MAX_LIMIT = 100  # Максимальное количество записей в ответе API
+    MAX_REQUESTS = 10  # Максимальное количество запросов в секунду
+    raw_data = []
+
+    def __init__(self, user, date_from):
+        RedmineTime.__init__(self)
+
+        self._params = self._params | {
+            'user_id': user,
+            'from': date_from,
+        }
+
+    @staticmethod
+    async def _download_one_portion(gathered_tasks):
+        """
+        Отправляет несколько запросов и возвращает данные
+        :param gathered_tasks: массив запросов, которые нужно отправить
+        :return: список json-словарей с результатами
+        """
+
+        responses = await asyncio.gather(*gathered_tasks)
+
+        res = []
+        for r in responses:
+            temp = await r.json()
+            res.extend(temp.get(RedmineTimeByUsers.MAIN_ENTITY))
+
+        return res
+
+    async def _get_total_count(self, session):
+        """
+        Отправляет запрос на получение последней отбивки и извлекает из него значение общего количества записей
+        :param session: текущая сессия, в которой идет работа
+        :return: общее количество записей
+        """
+
+        params = self._params | {'limit': 1}
+        async with session.get(self._url, headers=self._headers, params=params) as r:
+            result = await r.json()
+            return self._extract_total_count(result)
+
+    @staticmethod
+    def _extract_total_count(raw_data):
+        """
+        Извлекает общее количество записей из массива сырых полученных данных
+        :param raw_data: сырые данные ответа
+        :return: общее количество записей
+        """
+        return raw_data.get('total_count')
+
+    async def _gather_tasks(self, session, total_rows_count):
+        """
+        Создает несколько задач и объединяет их для выполнения запроса.
+        Явно задает в запросе параметр limit = MAX_LIMIT
+        :param session: текущая сессия, в которой идет работа
+        :param total_rows_count: общее количество записей, которые необходимо выгрузить
+        :return: список задач, которые должны быть отправлены в одном цикле
+        """
+
+        gathered_portions = []
+        gathered_tasks = []
+        offset = 0
+
+        while offset < total_rows_count:
+
+            temp_params = {
+                'limit': RedmineTimeByUsers.MAX_LIMIT,
+                'offset': offset,
+            }
+            params = self._params | temp_params
+
+            task = await self._create_single_task(session, params)
+            gathered_tasks.append(task)
+
+            if len(gathered_tasks) >= RedmineTimeByUsers.MAX_REQUESTS:
+                gathered_portions.append(gathered_tasks)
+                gathered_tasks = []
+
+            offset += RedmineTimeByUsers.MAX_LIMIT
+
+        if len(gathered_tasks) > 0:
+            gathered_portions.append(gathered_tasks)
+
+        return gathered_portions
+
+    async def _download_data(self):
+        """
+        Основной метод, получает все запрошенные данные.
+        Добавляет данные в переменную класса raw_data
+        """
+
+        async with ClientSession() as session:
+
+            total_rows_count = await self._get_total_count(session)
+            all_tasks = await self._gather_tasks(session, total_rows_count)
+
+            for portion in all_tasks:
+                temp = await self._download_one_portion(portion)
+                RedmineTimeByUsers.raw_data.extend(temp)
+                await asyncio.sleep(1)
+
+    @classmethod
+    def get(cls):
+        return cls.raw_data
+
+
 class TransformToDf(ABC):
 
     def __init__(self):
@@ -353,6 +478,21 @@ class Factory:
                 return RedmineTime(), TransformTimeToDf()
 
 
+class Extractor:
+
+    def __init__(self, data):
+        self.data = data
+        self.clean_data = set()
+
+    def extract_issues(self):
+
+        for item in self.data:
+            self.clean_data.add(item.get('issue').get('id'))
+
+    def get(self):
+        return self.clean_data
+
+
 async def main():
     api, transformer = Factory('issues').choose()
     data = await api.get_data()
@@ -375,18 +515,40 @@ async def main():
     print(merged_data)
 
 
+@timetracking
+async def main2():
+
+    logging.info('Work with API')
+    for user in list(USER_IDS.keys()):
+        api = RedmineTimeByUsers(user, date_from='2022-01-01')
+        await api.get_data()
+
+    data = RedmineTimeByUsers.get()
+
+    extractor = Extractor(data)
+    extractor.extract_issues()
+    issues = extractor.get()
+
+    print(len(issues))
+
+    # logging.info('Work with data')
+    # clean_data = []
+    # for row in data:
+    #     temp = {
+    #         'id': row.get('id'),
+    #         'project': row.get('project').get('name'),
+    #         'issue': row.get('issue').get('id'),
+    #         'user': row.get('user').get('name'),
+    #         'hours': row.get('hours'),
+    #         'spent_on': row.get('spent_on'),
+    #     }
+    #
+    #     clean_data.append(temp)
+    #
+    # df = pd.DataFrame(clean_data)
+    # print(df)
+
+
 if __name__ == '__main__':
     set_preferences()
-    asyncio.run(main())
-
-    # with aiomisc.entrypoint(log_config=False) as loop:
-    #     set_preferences()
-
-        # # If need to run while True
-        # try:
-        #     while True:
-        #         task = loop.create_task(main())
-        #         loop.run_until_complete(task)
-        #         sleep(interval)
-        # except KeyboardInterrupt:
-        #     logger.info('Программа остановлена вручную.')
+    asyncio.run(main2())
