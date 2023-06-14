@@ -23,7 +23,7 @@ class IndexSet:
     """Общие настройки для классов, которые забирают данные об индексации"""
 
     def __init__(self):
-        self.token = os.getenv('YANDEX_TOKEN')
+        self.token = os.getenv('METRIKA_TOKEN')
         self.start_date, self.end_date = self.get_period()
 
         self.MAX_RETRIES = 5
