@@ -234,7 +234,7 @@ class RedmineTimeByUsers(RedmineTime):
 
     MAIN_ENTITY = 'time_entries'  # Ключевая сущность класса, которая будет загружена при возвращении ответа
     MAX_LIMIT = 100  # Максимальное количество записей в ответе API
-    MAX_REQUESTS = 10  # Максимальное количество запросов в секунду
+    MAX_REQUESTS = 15  # Максимальное количество запросов в секунду
     raw_data = []
 
     def __init__(self, user, date_from):
@@ -329,9 +329,97 @@ class RedmineTimeByUsers(RedmineTime):
             total_rows_count = await self._get_total_count(session)
             all_tasks = await self._gather_tasks(session, total_rows_count)
 
-            for portion in all_tasks:
+            for num, portion in enumerate(all_tasks):
+                logger.info(f'Send request portion number {num+1}')
                 temp = await self._download_one_portion(portion)
                 RedmineTimeByUsers.raw_data.extend(temp)
+                await asyncio.sleep(1)
+
+    @classmethod
+    def get(cls):
+        return cls.raw_data
+
+
+class RedmineIssuesByList(Redmine):
+    _is_abstract = False
+    MAX_LIMIT = 100
+    MAX_REQUESTS = 15
+    raw_data = []
+
+    def __init__(self, issues_list: list):
+
+        Redmine.__init__(self)
+        self.issues_list = issues_list
+        self._url = 'https://redmine.twinscom.ru/issues/'
+        self._format = '.json'
+
+    # Копия с Redmine._create_single_task(), только с другим url и без параметров
+    async def _create_single_task_child(self, session: ClientSession, url):
+        """
+        Формирует задачу для забора из Редмайна задач для одного пользователя.
+
+        :param session: Объект aiohttp ссессии
+        :param user_id: ID пользователя, для которого необходимо забрать задачи
+        """
+
+        request = session.get(url, headers=self._headers)
+        return asyncio.create_task(request)
+
+    # Копия с RedmineTimeByUsers._gather_tasks()
+    async def _gather_tasks(self, session):
+        """
+        Создает несколько задач и объединяет их для выполнения запроса.
+        Явно задает в запросе параметр limit = MAX_LIMIT
+        :param session: текущая сессия, в которой идет работа
+        :param total_rows_count: общее количество записей, которые необходимо выгрузить
+        :return: список задач, которые должны быть отправлены в одном цикле
+        """
+
+        gathered_portions = []
+        gathered_tasks = []
+
+        for issue in self.issues_list:
+
+            url = self._url + str(issue) + self._format
+            task = await self._create_single_task_child(session, url)
+            gathered_tasks.append(task)
+
+            if len(gathered_tasks) >= RedmineIssuesByList.MAX_REQUESTS:
+                gathered_portions.append(gathered_tasks)
+                gathered_tasks = []
+
+        if len(gathered_tasks) > 0:
+            gathered_portions.append(gathered_tasks)
+
+        return gathered_portions
+
+    # Копия с RedmineTimeByUsers._download_one_portion()
+    @staticmethod
+    async def _download_one_portion(gathered_tasks):
+        """
+        Отправляет несколько запросов и возвращает данные
+        :param gathered_tasks: массив запросов, которые нужно отправить
+        :return: список json-словарей с результатами
+        """
+
+        responses = await asyncio.gather(*gathered_tasks)
+
+        res = []
+        for r in responses:
+            temp = await r.json()
+            res.append(temp)
+
+        return res
+
+    async def _download_data(self):
+
+        async with ClientSession() as session:
+            all_tasks = await self._gather_tasks(session)
+
+            for num, portion in enumerate(all_tasks):
+                logger.info(f'Send request portion number {num+1}')
+                temp = await self._download_one_portion(portion)
+                RedmineIssuesByList.raw_data.extend(temp)
                 await asyncio.sleep(1)
 
     @classmethod
@@ -490,6 +578,33 @@ class Extractor:
             self.clean_data.add(item.get('issue').get('id'))
 
     def get(self):
+        return list(self.clean_data)
+
+
+class Cleaner:
+
+    def __init__(self, data):
+        self.data = data
+        self.clean_data = []
+
+    def clean(self):
+        for raw_row in self.data:
+            row = raw_row.get('issue')
+            temp = {
+                'id': row.get('id'),
+                'project': row.get('project').get('name'),
+                'tracker': row.get('tracker').get('name'),
+                'author': row.get('author').get('name'),
+                'subject': row.get('subject'),
+                'description': row.get('description'),
+                'start_date': row.get('start_date'),
+                'due_date': row.get('due_date'),
+                'estimated_hours': row.get('estimated_hours'),
+                'spent_hours': row.get('spent_hours'),
+            }
+            self.clean_data.append(temp)
+
+    def get(self):
         return self.clean_data
 
 
@@ -529,18 +644,25 @@ async def main2():
     extractor.extract_issues()
     issues = extractor.get()
 
-    print(len(issues))
+    logger.info(f'Got {len(issues)} issues, start getting from Redmine')
+
+    issue_extractor = RedmineIssuesByList(issues)
+    await issue_extractor.get_data()
+    issue_data = issue_extractor.get()
+
+    cleaner = Cleaner(issue_data)
+    cleaner.clean()
+    issue_data = cleaner.get()
+
+    df = pd.DataFrame(issue_data)
+    df.to_excel('issues.xlsx')
+
 
     # logging.info('Work with data')
     # clean_data = []
     # for row in data:
     #     temp = {
-    #         'id': row.get('id'),
-    #         'project': row.get('project').get('name'),
-    #         'issue': row.get('issue').get('id'),
-    #         'user': row.get('user').get('name'),
-    #         'hours': row.get('hours'),
-    #         'spent_on': row.get('spent_on'),
+
     #     }
     #
     #     clean_data.append(temp)

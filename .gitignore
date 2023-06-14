@@ -3,3 +3,4 @@ venv
 drafts/.env
 .pytest_cache
 /drafts/.env
+/drafts/*.xlsx
