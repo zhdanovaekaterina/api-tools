@@ -1,3 +1,7 @@
+"""
+Общие декораторы
+"""
+
 import logging
 from time import time
 
